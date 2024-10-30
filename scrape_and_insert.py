@@ -12,7 +12,6 @@ def init_db_connection():
     db_password = os.getenv("DB_PASSWORD")
     db_name = os.getenv("DB_NAME")
     db_connection_name = os.getenv("DB_CONNECTION_NAME")
-
     pool = sqlalchemy.create_engine(
         sqlalchemy.engine.url.URL.create(
             drivername="postgresql+pg8000",
@@ -51,7 +50,6 @@ def get_food_dict(soup):
 
 @app.route("/", methods=["POST"])
 def scrape_and_insert():
-    """Scrape meal data and insert it into the database."""
     meal_time = request.json.get("meal_time")
     if not meal_time:
         return jsonify({"error": "meal_time is required"}), 400
@@ -76,9 +74,3 @@ def scrape_and_insert():
                         {"date": datetime.now().date(), "meal_time": meal_time, "food_item": food}
                     )
     except Exception as e:
-        return jsonify({"error": f"Database insertion failed: {e}"}), 500
-
-    return jsonify({"status": "data inserted"}), 200
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
