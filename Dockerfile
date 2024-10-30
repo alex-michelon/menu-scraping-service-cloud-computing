@@ -10,4 +10,4 @@ RUN apt-get update && apt-get install -y gcc wget \
     && pip install -r requirements.txt \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-CMD ["/bin/sh", "-c", "/cloud_sql_proxy -dir=/cloudsql -instances=$DB_CONNECTION_NAME & python scrape_and_insert.py"]
+CMD ["/bin/sh", "-c", "/cloud_sql_proxy -dir=/cloudsql -instances=$DB_CONNECTION_NAME & python scrape_and_insert.py --port=$PORT"]
