@@ -79,4 +79,5 @@ def scrape_and_insert():
     return jsonify({"status": "data inserted"}), 200
 
 if __name__ == "__main__":
+    pass
     # app.run(host="0.0.0.0", port=8080)
