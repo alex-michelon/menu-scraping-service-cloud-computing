@@ -2,12 +2,9 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-COPY . /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-RUN apt-get update && apt-get install -y gcc wget \
-    && wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O /cloud_sql_proxy \
-    && chmod +x /cloud_sql_proxy \
-    && pip install -r requirements.txt \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+COPY . .
 
 CMD ["python", "scrape_and_insert.py"]
