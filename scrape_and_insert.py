@@ -1,11 +1,33 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-import pg8000
 from datetime import datetime
 from flask import Flask, request, jsonify
+import sqlalchemy
 
 app = Flask(__name__)
+
+def init_db_connection():
+    db_user = os.getenv("DB_USER")
+    db_password = os.getenv("DB_PASSWORD")
+    db_name = os.getenv("DB_NAME")
+    db_connection_name = os.getenv("DB_CONNECTION_NAME")
+    pool = sqlalchemy.create_engine(
+        sqlalchemy.engine.url.URL.create(
+            drivername="postgresql+pg8000",
+            username=db_user,
+            password=db_password,
+            database=db_name,
+            query={"unix_sock": f"/cloudsql/{db_connection_name}/.s.PGSQL.5432"},
+        ),
+        pool_size=5,
+        max_overflow=2,
+        pool_timeout=30,
+        pool_recycle=1800,
+    )
+    return pool
+
+db = init_db_connection()
 
 def scrape_website(url):
     response = requests.get(url)
@@ -29,29 +51,33 @@ def get_food_dict(soup):
 @app.route("/", methods=["POST"])
 def scrape_and_insert():
     meal_time = request.json.get("meal_time")
+    if not meal_time:
+        return jsonify({"error": "meal_time is required"}), 400
+
     url = f"https://liondine.com/{meal_time}"
-    soup = scrape_website(url)
-    food_dict = get_food_dict(soup)
+    try:
+        soup = scrape_website(url)
+        food_dict = get_food_dict(soup)
+    except requests.RequestException as e:
+        return jsonify({"error": f"Failed to fetch meal data: {e}"}), 500
 
-    db_user = os.getenv("DB_USER")
-    db_password = os.getenv("DB_PASSWORD")
-    db_name = os.getenv("DB_NAME")
-    db_connection_name = os.getenv("DB_CONNECTION_NAME")
+    try:
+        with db.connect() as connection:
+            for category, foods in food_dict.items():
+                for food in foods:
+                    insert_sql = """
+                    INSERT INTO daily_meals (date, meal_time, food_item)
+                    VALUES (:date, :meal_time, :food_item)
+                    """
+                    connection.execute(
+                        sqlalchemy.text(insert_sql),
+                        {"date": datetime.now().date(), "meal_time": meal_time, "food_item": food}
+                    )
+    except Exception as e:
+        return jsonify({"error": f"Database insertion failed: {e}"}), 500
 
-    connection = pg8000.connect(user=db_user, password=db_password, database=db_name, unix_sock=f'/cloudsql/{db_connection_name}')
-    cursor = connection.cursor()
-
-    for category, foods in food_dict.items():
-        for food in foods:
-            insert_sql = f"""
-            INSERT INTO daily_meals (date, meal_time, food_item)
-            VALUES ('{datetime.now().date()}', '{meal_time}', '{food.replace("'", "''")}')
-            """
-            cursor.execute(insert_sql)
-    connection.commit()
-    cursor.close()
-    connection.close()
     return jsonify({"status": "data inserted"}), 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    pass
+    # app.run(host="0.0.0.0", port=8080)
