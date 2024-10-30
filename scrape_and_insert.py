@@ -74,3 +74,9 @@ def scrape_and_insert():
                         {"date": datetime.now().date(), "meal_time": meal_time, "food_item": food}
                     )
     except Exception as e:
+        return jsonify({"error": f"Database insertion failed: {e}"}), 500
+
+    return jsonify({"status": "data inserted"}), 200
+
+if __name__ == "__main__":
+    # app.run(host="0.0.0.0", port=8080)
