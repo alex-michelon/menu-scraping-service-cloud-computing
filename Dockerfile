@@ -2,9 +2,8 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y wget \
-    && wget https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O /usr/local/bin/cloud_sql_proxy \
-    && chmod +x /usr/local/bin/cloud_sql_proxy
+COPY cloud_sql_proxy /usr/local/bin/cloud_sql_proxy
+RUN chmod +x /usr/local/bin/cloud_sql_proxy
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
