@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from flask import Flask, request, jsonify
 import sqlalchemy
+import logging
 
 app = Flask(__name__)
 
