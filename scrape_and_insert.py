@@ -51,24 +51,36 @@ def get_food_dict(soup):
 @app.route("/", methods=["POST"])
 def scrape_and_insert():
     meal_time = request.json.get("meal_time")
-    url = f"https://liondine.com/{meal_time}"
-    soup = scrape_website(url)
-    food_dict = get_food_dict(soup)
+    if not meal_time:
+        return jsonify({"error": "meal_time is required"}), 400
 
-    with db.connect() as connection:
-        for category, foods in food_dict.items():
-            for food in foods:
-                insert_sql = """
-                    INSERT INTO daily_meals (date, meal_time, food_item)
-                    VALUES (:date, :meal_time, :food_item)
-                """
-                connection.execute(
-                    sqlalchemy.text(insert_sql),
-                    {
-                        "date": datetime.now().date(),
-                        "meal_time": meal_time,
-                        "food_item": food.replace("'", "''")
-                    }
-                )
+    url = f"https://liondine.com/{meal_time}"
+    try:
+        soup = scrape_website(url)
+        food_dict = get_food_dict(soup)
+    except requests.RequestException as e:
+        return jsonify({"error": f"Failed to fetch data: {str(e)}"}), 500
+
+    try:
+        with db.connect() as connection:
+            for category, foods in food_dict.items():
+                for food in foods:
+                    insert_sql = """
+                        INSERT INTO daily_meals (date, meal_time, food_item)
+                        VALUES (:date, :meal_time, :food_item)
+                    """
+                    connection.execute(
+                        sqlalchemy.text(insert_sql),
+                        {
+                            "date": datetime.now().date(),
+                            "meal_time": meal_time,
+                            "food_item": food.replace("'", "''")
+                        }
+                    )
+    except Exception as e:
+        return jsonify({"error": f"Database insertion failed: {str(e)}"}), 500
 
     return jsonify({"status": "data inserted"}), 200
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
