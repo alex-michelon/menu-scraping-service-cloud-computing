@@ -12,4 +12,4 @@ COPY . .
 
 ENV PORT=8080
 
-CMD ["/bin/sh", "-c", "/usr/local/bin/cloud_sql_proxy -instances=$DB_CONNECTION_NAME=tcp:5432 & python scrape_and_insert.py --port=${PORT}"]
+CMD ["/usr/local/bin/cloud_sql_proxy", "-instances=$DB_CONNECTION_NAME=tcp:5432", "&", "python", "scrape_and_insert.py"]
