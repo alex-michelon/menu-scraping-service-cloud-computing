@@ -10,6 +10,9 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
 ENV PORT=8080
 
-CMD ["/usr/local/bin/cloud_sql_proxy", "-instances=$DB_CONNECTION_NAME=tcp:5432", "&", "python", "scrape_and_insert.py"]
+CMD ["/start.sh"]
