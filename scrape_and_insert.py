@@ -6,6 +6,8 @@ from flask import Flask, request, jsonify
 import sqlalchemy
 import logging
 
+logging.basicConfig(level=logging.INFO)
+
 app = Flask(__name__)
 
 def init_db_connection():
@@ -51,22 +53,22 @@ def get_food_dict(soup):
 
 @app.route("/", methods=["POST"])
 def scrape_and_insert():
-    meal_time = request.json.get("meal_time")
-    if not meal_time:
-        return jsonify({"error": "meal_time is required"}), 400
-
-    url = f"https://liondine.com/{meal_time}"
     try:
+        meal_time = request.json.get("meal_time")
+        if not meal_time:
+            logging.error("meal_time parameter is missing")
+            return jsonify({"error": "meal_time is required"}), 400
+
+        url = f"https://liondine.com/{meal_time}"
+        logging.info(f"Fetching data from URL: {url}")
         soup = scrape_website(url)
         food_dict = get_food_dict(soup)
-    except requests.RequestException as e:
-        return jsonify({"error": f"Failed to fetch data: {str(e)}"}), 500
+        logging.info(f"Fetched food data: {food_dict}")
 
-    try:
         with db.connect() as connection:
             for category, foods in food_dict.items():
                 for food in foods:
-                    logging.info(f"Inserting: date={datetime.now().date()}, meal_time={meal_time}, food_item={food}")
+                    logging.info(f"Inserting data: date={datetime.now().date()}, meal_time={meal_time}, food_item={food}")
                     insert_sql = """
                         INSERT INTO daily_meals (date, meal_time, food_item)
                         VALUES (:date, :meal_time, :food_item)
@@ -79,10 +81,11 @@ def scrape_and_insert():
                             "food_item": food.replace("'", "''")
                         }
                     )
-        logging.info("Data insertion completed.")
+            logging.info("Data insertion completed successfully.")
     except Exception as e:
-        logging.error(f"Database insertion failed: {str(e)}")
-        return jsonify({"error": f"Database insertion failed: {str(e)}"}), 500
+        logging.error(f"Error occurred: {str(e)}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
     return jsonify({"status": "data inserted"}), 200
 
 if __name__ == "__main__":
