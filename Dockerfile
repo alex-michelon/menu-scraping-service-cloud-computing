@@ -10,9 +10,6 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
 ENV PORT=8080
 
-CMD ["/start.sh"]
+CMD ["/bin/sh", "-c", "/usr/local/bin/cloud_sql_proxy -instances=cumulonimbus-439521:us-central1:cumulonimbus-cloud-sql=tcp:5432 & python scrape_and_insert.py --port=${PORT}"]
