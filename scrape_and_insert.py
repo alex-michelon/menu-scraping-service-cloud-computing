@@ -15,10 +15,8 @@ def init_db_connection():
     pool = sqlalchemy.create_engine(
         sqlalchemy.engine.url.URL.create(
             drivername="postgresql+pg8000",
-            username=db_user,   
-
-            password=db_password,   
-
+            username=db_user,
+            password=db_password,
             database=db_name,
             query={"unix_sock": f"/cloudsql/{db_connection_name}/.s.PGSQL.5432"},
         ),
