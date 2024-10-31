@@ -65,6 +65,7 @@ def scrape_and_insert():
         with db.connect() as connection:
             for category, foods in food_dict.items():
                 for food in foods:
+                    logging.info(f"Inserting: date={datetime.now().date()}, meal_time={meal_time}, food_item={food}")
                     insert_sql = """
                         INSERT INTO daily_meals (date, meal_time, food_item)
                         VALUES (:date, :meal_time, :food_item)
@@ -77,9 +78,10 @@ def scrape_and_insert():
                             "food_item": food.replace("'", "''")
                         }
                     )
+        logging.info("Data insertion completed.")
     except Exception as e:
+        logging.error(f"Database insertion failed: {str(e)}")
         return jsonify({"error": f"Database insertion failed: {str(e)}"}), 500
-
     return jsonify({"status": "data inserted"}), 200
 
 if __name__ == "__main__":
