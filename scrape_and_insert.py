@@ -86,6 +86,7 @@ def scrape_and_insert():
                             "dining_hall": dh
                         }
                     )
+            connection.commit()
             logging.info("Data insertion completed successfully.")
     except Exception as e:
         logging.error(f"Error occurred: {str(e)}")
