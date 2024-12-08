@@ -75,7 +75,7 @@ def scrape_and_insert():
                     logging.info(f"Inserting data: date={datetime.now().date()}, meal_time={meal_time}, food_item={food},dining_hall={dh}")
                     insert_sql = """
                         INSERT INTO daily_meals (date, meal_time, food_item, dining_hall)
-                        VALUES (:date, :meal_time, :food_item)
+                        VALUES (:date, :meal_time, :food_item, :dining_hall)
                     """
                     connection.execute(
                         sqlalchemy.text(insert_sql),
