@@ -70,11 +70,11 @@ def scrape_and_insert():
         logging.info(f"Fetched food data: {food_dict}")
 
         with db.connect() as connection:
-            for category, foods in food_dict.items():
+            for dh, foods in food_dict.items():
                 for food in foods:
-                    logging.info(f"Inserting data: date={datetime.now().date()}, meal_time={meal_time}, food_item={food}")
+                    logging.info(f"Inserting data: date={datetime.now().date()}, meal_time={meal_time}, food_item={food},dining_hall={dh}")
                     insert_sql = """
-                        INSERT INTO daily_meals (date, meal_time, food_item)
+                        INSERT INTO daily_meals (date, meal_time, food_item, dining_hall)
                         VALUES (:date, :meal_time, :food_item)
                     """
                     connection.execute(
@@ -82,7 +82,8 @@ def scrape_and_insert():
                         {
                             "date": datetime.now().date(),
                             "meal_time": meal_time,
-                            "food_item": food.replace("'", "''")
+                            "food_item": food.replace("'", "''"),
+                            "dining_hall": dh
                         }
                     )
             logging.info("Data insertion completed successfully.")
