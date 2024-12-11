@@ -45,14 +45,21 @@ def get_food_dict(soup):
     food_dict = {}
     h3_tags = soup.find_all('h3')
     for h3 in h3_tags:
+        lines = {"":[]}
         food_names = []
+        line_type = ""
         for nxt in h3.findAllNext():
             if nxt.name == 'h3':
                 break
-            if nxt.name == 'div' and 'food-name' in nxt.get('class', []):
-                food_names.append(nxt.text.strip())
-        if food_names:
-            food_dict[h3.text.strip()] = food_names
+            if nxt.name == 'div' and 'food-type' in nxt.get('class', []):
+                line_type = nxt.text.strip()
+                lines[line_type] = []
+            elif nxt.name == 'div' and 'food-name' in nxt.get('class', []):
+                lines[line_type].append(nxt.text.strip())
+        if not len(lines[""]):
+            del lines[""]
+        if any(values for values in lines.values() if values):
+            food_dict[h3.text.strip()] = lines
     return food_dict
 
 @app.route("/", methods=["POST"])
@@ -70,22 +77,24 @@ def scrape_and_insert():
         logging.info(f"Fetched food data: {food_dict}")
 
         with db.connect() as connection:
-            for dh, foods in food_dict.items():
-                for food in foods:
-                    logging.info(f"Inserting data: date={datetime.now().date()}, meal_time={meal_time}, food_item={food},dining_hall={dh}")
-                    insert_sql = """
-                        INSERT INTO daily_meals (date, meal_time, food_item, dining_hall)
-                        VALUES (:date, :meal_time, :food_item, :dining_hall)
-                    """
-                    connection.execute(
-                        sqlalchemy.text(insert_sql),
-                        {
-                            "date": datetime.now().date(),
-                            "meal_time": meal_time,
-                            "food_item": food.replace("'", "''"),
-                            "dining_hall": dh
-                        }
-                    )
+            for dh, lines in food_dict.items():
+                for line, foods in lines.items():
+                    for food in foods:
+                        logging.info(f"Inserting data: date={datetime.now().date()}, meal_time={meal_time}, food_item={food},dining_hall={dh},line_type={line}")
+                        insert_sql = """
+                            INSERT INTO daily_meals (date, meal_time, food_item, dining_hall, line_type)
+                            VALUES (:date, :meal_time, :food_item, :dining_hall, :line_type)
+                        """
+                        connection.execute(
+                            sqlalchemy.text(insert_sql),
+                            {
+                                "date": datetime.now().date(),
+                                "meal_time": meal_time,
+                                "food_item": food.replace("'", "''"),
+                                "dining_hall": dh,
+                                "line_type": line
+                            }
+                        )
             connection.commit()
             logging.info("Data insertion completed successfully.")
     except Exception as e:
