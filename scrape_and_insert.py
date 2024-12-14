@@ -11,6 +11,13 @@ from google.cloud.logging import Client as LoggingClient
 logging_client = LoggingClient()
 logging_client.setup_logging()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+)
+
+logging.info("Cloud Logging has been initialized.")
+
 app = Flask(__name__)
 
 def init_db_connection():
