@@ -101,4 +101,31 @@ def scrape_and_insert():
         with db.connect() as connection:
             for dh, lines in food_dict.items():
                 for line, foods in lines.items():
-         
+                    for food in foods:
+                        log_with_trace_and_correlation(
+                            f"Inserting data: date={datetime.now().date()}, meal_time={meal_time}, food_item={food}, dining_hall={dh}, line_type={line}"
+                        )
+                        insert_sql = """
+                            INSERT INTO daily_meals (date, meal_time, food_item, dining_hall, line_type)
+                            VALUES (:date, :meal_time, :food_item, :dining_hall, :line_type)
+                        """
+                        connection.execute(
+                            sqlalchemy.text(insert_sql),
+                            {
+                                "date": datetime.now().date(),
+                                "meal_time": meal_time,
+                                "food_item": food.replace("'", "''"),
+                                "dining_hall": dh,
+                                "line_type": line
+                            }
+                        )
+            connection.commit()
+            log_with_trace_and_correlation("Data insertion completed successfully.")
+    except Exception as e:
+        log_with_trace_and_correlation(f"Error occurred: {str(e)}", logging.ERROR)
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+    return jsonify({"status": "data inserted"}), 200
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
