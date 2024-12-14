@@ -2,11 +2,14 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 import sqlalchemy
 import logging
+import uuid
+from google.cloud.logging import Client as LoggingClient
 
-logging.basicConfig(level=logging.INFO)
+logging_client = LoggingClient()
+logging_client.setup_logging()
 
 app = Flask(__name__)
 
@@ -62,46 +65,40 @@ def get_food_dict(soup):
             food_dict[h3.text.strip()] = lines
     return food_dict
 
+@app.before_request
+def start_timer():
+    g.start_time = datetime.utcnow()
+    g.correlation_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
+    trace_header = request.headers.get("X-Cloud-Trace-Context")
+    g.trace_id = trace_header.split("/")[0] if trace_header else None
+
+@app.after_request
+def log_request(response):
+    duration = (datetime.utcnow() - g.start_time).total_seconds()
+    log_message = f"Request: {request.method} {request.url} | Status: {response.status_code} | Duration: {duration:.3f}s | CorrelationID: {g.correlation_id} | TraceID: {g.trace_id}"
+    logging.info(log_message)
+    response.headers["X-Correlation-ID"] = g.correlation_id
+    return response
+
+def log_with_trace_and_correlation(message, level=logging.INFO):
+    trace_message = f"{message} | CorrelationID: {g.correlation_id} | TraceID: {g.trace_id}" if g.trace_id else message
+    logging.log(level, trace_message)
+
 @app.route("/", methods=["POST"])
 def scrape_and_insert():
     try:
         meal_time = request.json.get("meal_time")
         if not meal_time:
-            logging.error("meal_time parameter is missing")
+            log_with_trace_and_correlation("meal_time parameter is missing", logging.ERROR)
             return jsonify({"error": "meal_time is required"}), 400
 
         url = f"https://liondine.com/{meal_time}"
-        logging.info(f"Fetching data from URL: {url}")
+        log_with_trace_and_correlation(f"Fetching data from URL: {url}")
         soup = scrape_website(url)
         food_dict = get_food_dict(soup)
-        logging.info(f"Fetched food data: {food_dict}")
+        log_with_trace_and_correlation(f"Fetched food data: {food_dict}")
 
         with db.connect() as connection:
             for dh, lines in food_dict.items():
                 for line, foods in lines.items():
-                    for food in foods:
-                        logging.info(f"Inserting data: date={datetime.now().date()}, meal_time={meal_time}, food_item={food},dining_hall={dh},line_type={line}")
-                        insert_sql = """
-                            INSERT INTO daily_meals (date, meal_time, food_item, dining_hall, line_type)
-                            VALUES (:date, :meal_time, :food_item, :dining_hall, :line_type)
-                        """
-                        connection.execute(
-                            sqlalchemy.text(insert_sql),
-                            {
-                                "date": datetime.now().date(),
-                                "meal_time": meal_time,
-                                "food_item": food.replace("'", "''"),
-                                "dining_hall": dh,
-                                "line_type": line
-                            }
-                        )
-            connection.commit()
-            logging.info("Data insertion completed successfully.")
-    except Exception as e:
-        logging.error(f"Error occurred: {str(e)}")
-        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
-
-    return jsonify({"status": "data inserted"}), 200
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+         
